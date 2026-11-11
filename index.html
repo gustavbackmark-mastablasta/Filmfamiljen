@@ -50,10 +50,10 @@ const db=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 // Sätt familjens PIN-koder här. Byt platshållarna mot egna fyrsiffriga koder.
 const MEMBER_PINS={
   "Gustav":"4444",
-  "Therese":"BYT_THERESE_PIN",
+  "Therese":"0242",
   "Knut":"2011",
-  "Bo":"BYT_BO_PIN",
-  "Bertil":"BYT_BERTIL_PIN"
+  "Bo":"6666",
+  "Bertil":"0808"
 };
 let members=[],films=[],ratings=[];
 let selected=localStorage.getItem("filmfamiljenLoggedIn")||sessionStorage.getItem("filmfamiljenLoggedIn")||null;
