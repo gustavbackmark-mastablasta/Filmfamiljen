@@ -69,6 +69,37 @@ th:nth-child(3),td:nth-child(3){width:44%}
   .bomb-fill .bomb-icon{width:15px}
   .bomb-score{font-size:11px;margin-left:3px}
 }
+.poster-link{display:block;width:100%;padding:0;border:0;border-radius:0;background:none;line-height:0;box-shadow:none}
+.poster-link:hover:not(:disabled){transform:none;border:0;filter:brightness(1.12)}
+.smallposter-link{display:inline-flex;padding:0;border:0;background:none;vertical-align:middle;line-height:0}
+.smallposter-link:hover:not(:disabled){transform:scale(1.04);border:0;background:none}
+.movie-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}
+.movie-modal.open{display:flex}
+.movie-dialog{position:relative;width:min(820px,100%);max-height:92vh;overflow:auto;background:#172230;border:1px solid #46566a;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.movie-modal-close{position:sticky;top:10px;float:right;z-index:3;margin:10px 10px -48px 0;width:38px;height:38px;padding:0;border-radius:50%;background:#263649;font-size:22px}
+.movie-detail-hero{position:relative;min-height:210px;background:#101720 center/cover no-repeat}
+.movie-detail-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,16,24,.96),rgba(10,16,24,.62)),linear-gradient(0deg,#172230,transparent 65%)}
+.movie-detail-head{position:relative;display:flex;gap:18px;align-items:flex-end;padding:35px 26px 20px;min-height:210px}
+.movie-detail-poster{width:112px;flex:0 0 112px;border-radius:9px;box-shadow:0 8px 25px rgba(0,0,0,.45)}
+.movie-detail-title{font-family:Georgia,serif;font-size:clamp(25px,4vw,36px);line-height:1.08;margin:0 0 8px}
+.movie-detail-meta{color:#c0cad6;font-size:13px;line-height:1.6}
+.movie-detail-content{padding:8px 26px 26px}
+.movie-detail-content h3{font-family:Georgia,serif;font-size:20px;margin:18px 0 8px}
+.movie-detail-overview{color:#e0e5eb;line-height:1.55;font-size:14px}
+.movie-detail-cast{color:#c0cad6;font-size:13px;line-height:1.6}
+.movie-detail-status{padding:30px;color:#c0cad6;text-align:center}
+.movie-trailer{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#080d13;margin-top:8px}
+.release-badge{display:inline-block;margin:0 0 9px;padding:5px 9px;border-radius:99px;background:#754b20;color:#ffe0a8;font-size:11px;font-weight:750;letter-spacing:.03em}
+@media(max-width:600px){
+ .movie-modal{padding:8px;align-items:flex-end}
+ .movie-dialog{max-height:94vh;border-radius:16px}
+ .movie-detail-hero,.movie-detail-head{min-height:170px}
+ .movie-detail-head{gap:12px;padding:28px 15px 14px}
+ .movie-detail-poster{width:82px;flex-basis:82px}
+ .movie-detail-content{padding:5px 16px 20px}
+ .movie-detail-title{font-size:25px}
+ .movie-detail-meta{font-size:12px}
+}
 .empty{padding:35px 15px;text-align:center;color:var(--muted);background:rgba(26,34,46,.8);border:1px dashed #526174;border-radius:15px}footer{margin-top:42px;color:#8290a1;font-size:11px;line-height:1.5}
 @media(max-width:600px){.wrap{padding:24px 12px 50px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.movie-body{padding:10px}.movie-title{font-size:16px}.movie-heading .avg{font-size:12px}.rating{gap:3px}.star{flex-basis:24px;width:24px;min-width:24px;font-size:23px}.searchrow{flex-direction:column}.result{align-items:flex-start}.result button{padding:8px}}
 </style>
@@ -78,6 +109,12 @@ th:nth-child(3),td:nth-child(3){width:44%}
 <header><div><h1>🍿 Filmbombarna 🍿</h1><div class="subtitle" id="subtitle">Laddar familjens filmer…</div></div><div class="pill">FEM TYCKARE · EN TOPPLISTA</div></header>
 <div class="toolbar" id="tabs"></div><main id="content"><div class="empty">Hämtar filmer och betyg…</div></main>
 <footer>Movie data and poster images provided by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener" style="color:#e8b65c">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
+</div>
+<div class="movie-modal" id="movieModal" onclick="if(event.target===this)closeMovieDetails()">
+  <section class="movie-dialog" role="dialog" aria-modal="true" aria-labelledby="movieDetailTitle">
+    <button class="movie-modal-close" onclick="closeMovieDetails()" aria-label="Stäng">×</button>
+    <div id="movieDetailContent" class="movie-detail-status">Laddar filminformation…</div>
+  </section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -108,7 +145,7 @@ function renderMembers(){const e=document.getElementById("members");if(!e)return
 function showLogin(message=""){document.getElementById("tabs").innerHTML="";document.getElementById("content").innerHTML=`<section class="panel"><h2>Vem är du?</h2><div class="legend">Välj ditt namn och ange din personliga PIN-kod. Denna bestäms i samråd med patriarken</div><div class="searchrow" style="flex-wrap:wrap"><select id="loginName" style="flex:1;min-width:150px;padding:12px;border-radius:10px;background:#101720;color:var(--ink);border:1px solid #526174">${members.map(m=>`<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("")}</select><input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="Fyrsiffrig PIN" style="flex:1;min-width:130px" onkeydown="if(event.key==='Enter')login()"></div><label style="display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--muted);font-size:13px"><input id="rememberLogin" type="checkbox" style="flex:0;width:auto"> Kom ihåg mig på den här mobilen</label><button class="primary" style="margin-top:14px" onclick="login()">Logga in</button><div class="status" id="loginStatus">${esc(message)}</div></section>`;}
 function login(){const name=document.getElementById("loginName").value,pin=document.getElementById("loginPin").value,remember=document.getElementById("rememberLogin").checked;if(MEMBER_PINS[name]!==pin){document.getElementById("loginStatus").textContent="Fel PIN-kod. Försök igen.";return;}selected=name;sessionStorage.setItem("filmfamiljenLoggedIn",name);if(remember)localStorage.setItem("filmfamiljenLoggedIn",name);else localStorage.removeItem("filmfamiljenLoggedIn");tab="rate";render();}
 function logout(){localStorage.removeItem("filmfamiljenLoggedIn");sessionStorage.removeItem("filmfamiljenLoggedIn");selected=null;showLogin();}
-function movieCard(f,member){const vals=filmRatings(f.id),mine=getRating(f.id,member.id),a=average(vals),valid=vals.filter(v=>v!==null),p=posterUrl(f.poster_path);return `<article class="movie">${p?`<img class="poster" src="${esc(p)}" alt="Filmaffisch för ${esc(f.title)}" loading="lazy">`:`<div class="poster-placeholder">🎬</div>`}<div class="movie-body"><div class="movie-heading"><div class="movie-title">${esc(f.title)}</div><div class="avg">${a?a.toFixed(1):"—"} <span class="votes">(${valid.length})</span></div></div><div class="year">${f.release_year||"Årtal saknas"}</div><div class="rating">${[1,2,3,4,5].map(n=>`<button class="star ${mine>=n?"on":""}" aria-label="${n} av 5" onclick="rate(${f.id},${n})">💣</button>`).join("")}</div><div class="mine">Ditt betyg: <b>${mine===null?"inte satt":mine+" / 5"}</b></div></div></article>`;}
+function movieCard(f,member){const vals=filmRatings(f.id),mine=getRating(f.id,member.id),a=average(vals),valid=vals.filter(v=>v!==null),p=posterUrl(f.poster_path);return `<article class="movie">${p?`<button class="poster-link" onclick="openMovieDetails(${Number(f.tmdb_id)})" aria-label="Visa information om ${esc(f.title)}"><img class="poster" src="${esc(p)}" alt="Visa information om ${esc(f.title)}" loading="lazy"></button>`:`<button class="poster-link" onclick="openMovieDetails(${Number(f.tmdb_id)})" aria-label="Visa information om ${esc(f.title)}"><div class="poster-placeholder">🎬</div></button>`}<div class="movie-body"><div class="movie-heading"><div class="movie-title">${esc(f.title)}</div><div class="avg">${a?a.toFixed(1):"—"} <span class="votes">(${valid.length})</span></div></div><div class="year">${f.release_year||"Årtal saknas"}</div><div class="rating">${[1,2,3,4,5].map(n=>`<button class="star ${mine>=n?"on":""}" aria-label="${n} av 5" onclick="rate(${f.id},${n})">💣</button>`).join("")}</div><div class="mine">Ditt betyg: <b>${mine===null?"inte satt":mine+" / 5"}</b></div></div></article>`;}
 function renderRate(){const m=members.find(x=>x.name===selected)||members[0];if(!m){document.getElementById("content").innerHTML='<div class="empty">Inga familjemedlemmar hittades.</div>';return;}const ordered=[...films].sort((a,b)=>{const x=getRating(a.id,m.id),y=getRating(b.id,m.id);if(x===null&&y!==null)return 1;if(y===null&&x!==null)return -1;if(x!==null&&y!==null&&x!==y)return y-x;return Number(a.id)-Number(b.id);});document.getElementById("content").innerHTML=`<div class="memberbar" id="members"></div><div class="legend">Välj person och sätt betyg med bomberna. Dina högst betygsatta filmer hamnar överst.</div>${ordered.length?`<div class="grid">${ordered.map(f=>movieCard(f,m)).join("")}</div>`:'<div class="empty">Inga filmer ännu. Lägg till den första filmen!</div>'}`;renderMembers();}
 function sortRanking(){sortKey="avg";sortDirection=sortDirection==="desc"?"asc":"desc";renderRanking();}
 function sortArrow(){return sortDirection==="desc"?" ↓":" ↑";}
@@ -138,11 +175,73 @@ function renderRanking(){
          <thead><tr><th>#</th><th>Film</th><th><button onclick="sortRanking()">Familjens betyg${sortArrow()}</button></th></tr></thead>
          <tbody>${rows.map((r,i)=>`<tr>
            <td class="rank">${i+1}</td>
-           <td><div class="ranking-film">${r.film.poster_path?`<img class="smallposter" src="${esc(posterUrl(r.film.poster_path))}" alt="">`:""}<span class="ranking-film-title">${esc(r.film.title)}${r.film.release_year?` <span style="color:var(--muted);font-size:11px">(${r.film.release_year})</span>`:""}</span></div></td>
+           <td><div class="ranking-film">${r.film.poster_path?`<button class="smallposter-link" onclick="openMovieDetails(${Number(r.film.tmdb_id)})" aria-label="Visa information om ${esc(r.film.title)}"><img class="smallposter" src="${esc(posterUrl(r.film.poster_path))}" alt=""></button>`:""}<span class="ranking-film-title">${esc(r.film.title)}${r.film.release_year?` <span style="color:var(--muted);font-size:11px">(${r.film.release_year})</span>`:""}</span></div></td>
            <td>${bombMarkup(r.votes?r.avg:0)}</td>
          </tr>`).join("")}</tbody>
        </table></div>`
     : '<div class="empty">Topplistan fylls på när ni lägger till filmer.</div>';
+}
+function closeMovieDetails(){
+  const modal=document.getElementById("movieModal");
+  modal.classList.remove("open");
+  document.body.style.overflow="";
+  document.getElementById("movieDetailContent").innerHTML="";
+}
+function formatMovieDate(value){
+  if(!value)return "Premiärdatum saknas";
+  const d=new Date(value+"T12:00:00");
+  return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat("sv-SE",{day:"numeric",month:"long",year:"numeric"}).format(d);
+}
+async function openMovieDetails(tmdbId){
+  if(!tmdbId){showError("Filmen saknar TMDB-ID och kan inte visa filminformation.");return;}
+  const modal=document.getElementById("movieModal"),content=document.getElementById("movieDetailContent");
+  modal.classList.add("open");
+  document.body.style.overflow="hidden";
+  content.className="movie-detail-status";
+  content.textContent="Hämtar filminformation från TMDB…";
+  try{
+    const url=`https://api.themoviedb.org/3/movie/${encodeURIComponent(tmdbId)}?api_key=${encodeURIComponent(TMDB_API_KEY)}&language=sv-SE&append_to_response=credits,videos`;
+    const response=await fetch(url);
+    if(!response.ok)throw new Error(`TMDB svarade med ${response.status}.`);
+    const m=await response.json();
+    const today=new Date();today.setHours(0,0,0,0);
+    const release=m.release_date?new Date(m.release_date+"T12:00:00"):null;
+    const upcoming=release&&release>today;
+    const backdrop=m.backdrop_path?`https://image.tmdb.org/t/p/w1280${m.backdrop_path}`:"";
+    const poster=m.poster_path?posterUrl(m.poster_path):"";
+    const director=(m.credits?.crew||[]).find(p=>p.job==="Director")?.name;
+    const cast=(m.credits?.cast||[]).slice(0,8).map(p=>p.name).join(", ");
+    const trailer=(m.videos?.results||[]).find(v=>v.site==="YouTube"&&v.type==="Trailer"&&v.official)
+      ||(m.videos?.results||[]).find(v=>v.site==="YouTube"&&v.type==="Trailer")
+      ||(m.videos?.results||[]).find(v=>v.site==="YouTube");
+    const genres=(m.genres||[]).map(g=>g.name).join(" · ");
+    const runtime=m.runtime?`${m.runtime} min`:"Speltid saknas";
+    content.className="";
+    content.innerHTML=`
+      <div class="movie-detail-hero" style="${backdrop?`background-image:url('${esc(backdrop)}')`:""}">
+        <div class="movie-detail-shade"></div>
+        <div class="movie-detail-head">
+          ${poster?`<img class="movie-detail-poster" src="${esc(poster)}" alt="">`:""}
+          <div>
+            ${upcoming?`<div class="release-badge">KOMMANDE FILM</div>`:""}
+            <h2 class="movie-detail-title" id="movieDetailTitle">${esc(m.title||m.original_title||"Film")}</h2>
+            <div class="movie-detail-meta">${m.release_date?esc(formatMovieDate(m.release_date)):"Premiärdatum saknas"} · ${esc(runtime)}${genres?`<br>${esc(genres)}`:""}</div>
+          </div>
+        </div>
+      </div>
+      <div class="movie-detail-content">
+        ${m.tagline?`<p class="movie-detail-meta"><i>${esc(m.tagline)}</i></p>`:""}
+        <h3>Handling</h3>
+        <div class="movie-detail-overview">${esc(m.overview||"Ingen beskrivning finns tillgänglig ännu.")}</div>
+        ${director?`<h3>Regi</h3><div class="movie-detail-cast">${esc(director)}</div>`:""}
+        ${cast?`<h3>Medverkande</h3><div class="movie-detail-cast">${esc(cast)}</div>`:""}
+        ${trailer?`<h3>Trailer</h3><iframe class="movie-trailer" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailer.key)}" title="Trailer för ${esc(m.title||"filmen")}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`:""}
+        <p class="movie-detail-meta" style="margin-top:20px">Filminformation och bilder från <a href="https://www.themoviedb.org/movie/${Number(m.id)}" target="_blank" rel="noopener" style="color:#e8b65c">The Movie Database (TMDB)</a>.</p>
+      </div>`;
+  }catch(error){
+    content.className="movie-detail-status";
+    content.textContent="Kunde inte hämta filminformation: "+error.message;
+  }
 }
 function renderAdd(){document.getElementById("content").innerHTML=`<section class="panel"><h2>Hitta en film</h2><div class="searchrow"><input id="movieSearch" type="search" placeholder="Sök filmtitel, t.ex. The Matrix" onkeydown="if(event.key==='Enter')searchMovies()"><button class="primary" id="searchButton" onclick="searchMovies()">Sök filmer</button></div><div class="status" id="searchStatus">Sök i TMDB och välj rätt film bland träffarna.</div><div class="results" id="searchResults"></div></section>`;}
 async function searchMovies(){const input=document.getElementById("movieSearch"),status=document.getElementById("searchStatus"),results=document.getElementById("searchResults"),q=input.value.trim();if(!q){status.textContent="Skriv en filmtitel först.";input.focus();return;}if(!TMDB_API_KEY||TMDB_API_KEY.includes("KLISTRA_IN")){status.textContent="Lägg först in din TMDB API Key i inställningarna i koden.";return;}status.textContent="Söker i TMDB…";results.innerHTML="";const button=document.getElementById("searchButton");button.disabled=true;try{const url=`https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(TMDB_API_KEY)}&query=${encodeURIComponent(q)}&language=sv-SE&include_adult=false&page=1`;const response=await fetch(url);if(!response.ok)throw new Error(`TMDB svarade med ${response.status}. Kontrollera API-nyckeln.`);const data=await response.json(),hits=(data.results||[]).slice(0,8);status.textContent=hits.length?`${hits.length} träffar. Välj rätt film:`:"Inga filmer hittades. Prova en annan stavning eller originaltitel.";results.innerHTML=hits.map(movie=>{const year=movie.release_date?movie.release_date.slice(0,4):"",img=posterUrl(movie.poster_path);return `<div class="result">${img?`<img src="${esc(img)}" alt="" loading="lazy">`:`<div style="width:58px;height:87px;display:grid;place-items:center;background:#293544;border-radius:6px">🎬</div>`}<div class="result-info"><div class="result-title">${esc(movie.title)}</div><div class="result-meta">${esc(year)}${movie.original_title&&movie.original_title!==movie.title?" · "+esc(movie.original_title):""}</div><div class="result-overview">${esc(movie.overview||"Ingen beskrivning tillgänglig.")}</div></div><button onclick="addMovie(${Number(movie.id)})">Lägg till</button></div>`;}).join("");}catch(e){status.textContent=e.message;}finally{button.disabled=false;}}
